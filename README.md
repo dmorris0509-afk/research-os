@@ -21,6 +21,13 @@ Research OS accepts Mythar source through a modular compiler client, validates t
 v0.4 semantic artifact, and preserves both the source and ISF in the evidence lineage. See
 [Mythar integration setup](docs/mythar-integration.md).
 
+## CHEA Ω∞ execution substrate
+
+Governed AI workflows now execute through a deterministic CHEA Runtime Broker and replaceable adapter
+contract. Each completed run preserves its Execution Envelope, Broker Selection Record, and Constitutional
+Execution Record inside the hash-backed Research Receipt. See the
+[CHEA reference implementation](docs/chea.md).
+
 ## Quick Start
 
 ### Installation
@@ -56,6 +63,7 @@ not require credentials. An `OPENAI_API_KEY` is only needed to execute live AI w
 - Provider-neutral AI interface with an OpenAI Responses API adapter for the hackathon runtime.
 - GitHub repository import for metadata, README content, Issues, and Pull Requests.
 - Mythar compiler integration with strict ISF v0.4 validation and evidence-lineage persistence.
+- CHEA Runtime Broker with deterministic selection, fail-closed assurance checks, and inspectable CERs.
 - FastAPI backend with SQLite persistence, migrations, OpenAPI documentation, tests, and CI.
 
 Run the automated tests with `pytest -q`.

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
+from research_os.chea import ConstitutionalExecutionRecord
 from research_os.config import get_settings
 from research_os.db import get_session
 from research_os.domain.errors import ValidationError
@@ -9,7 +10,7 @@ from research_os.domain.services.ai_provider import AIProviderRegistry
 from research_os.infrastructure import OpenAIResearchClient
 from research_os.integrations.mythar import MytharCompilerClient, MytharImporter
 
-from .auth import current_principal
+from .auth import Principal, current_principal
 from .schemas import (
     AnalysisCreate,
     AnalysisRead,
@@ -189,6 +190,20 @@ def list_receipts(project_id: int, svc: ResearchService = Depends(service)):
     return svc.list_entities("receipts", project_id)
 
 
+@router.get(
+    "/projects/{project_id}/receipts/{receipt_id}/cer",
+    response_model=ConstitutionalExecutionRecord,
+)
+def get_constitutional_execution_record(
+    project_id: int, receipt_id: int, svc: ResearchService = Depends(service)
+):
+    receipt = svc._owned(svc.uow.receipts, receipt_id, project_id)
+    payload = receipt.evidence_bundle.get("chea", {}).get("constitutional_execution_record")
+    if not payload:
+        raise ValidationError("Research Receipt does not contain a CHEA execution record")
+    return ConstitutionalExecutionRecord.model_validate(payload)
+
+
 @router.post(
     "/projects/{project_id}/workflow/execute",
     response_model=WorkflowRead,
@@ -199,6 +214,7 @@ def execute_workflow(
     body: WorkflowExecute,
     session: Session = Depends(get_session),
     providers: AIProviderRegistry = Depends(ai_provider_registry),
+    principal: Principal = Depends(current_principal),
 ):
     return ResearchWorkflowService(session, providers.resolve(body.provider)).run(
         project_id=project_id,
@@ -208,4 +224,5 @@ def execute_workflow(
         max_output_tokens=body.max_output_tokens,
         workflow_version=body.workflow_version,
         publication_title=body.publication_title,
+        actor_id=principal.subject,
     )

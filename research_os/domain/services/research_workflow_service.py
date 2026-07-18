@@ -1,11 +1,24 @@
 from dataclasses import dataclass
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from research_os.chea import (
+    AssuranceClass,
+    BrokerOutcome,
+    Capability,
+    DataBoundary,
+    EvidenceRequirements,
+    ExecutionEnvelope,
+    ResourceLimits,
+    RuntimeBroker,
+    WorkflowContext,
+)
 from research_os.constitution import ConstitutionalRuntime, WorkflowRequest
 from research_os.domain.errors import ValidationError
 
 from .ai_provider import AIProvider, AIResearchRequest
+from .chea_ai_adapter import AIProviderRuntimeAdapter
 from .research_service import ResearchService
 from .workflow_models import ResearchSource
 
@@ -40,6 +53,7 @@ class ResearchWorkflowService:
         max_output_tokens: int,
         workflow_version: str,
         publication_title: str,
+        actor_id: str = "research-os-workflow",
     ) -> WorkflowResult:
         request = self.runtime.authorize(
             WorkflowRequest(
@@ -80,14 +94,54 @@ class ResearchWorkflowService:
             },
         )
         research_question = self.research.create_question(project_id, question, "in_progress")
-        draft = self.ai_provider.generate_research(
-            AIResearchRequest(
-                question=request.question,
-                sources=inputs,
-                model=request.model,
-                max_output_tokens=request.max_output_tokens,
-            )
+        ai_request = AIResearchRequest(
+            question=request.question,
+            sources=inputs,
+            model=request.model,
+            max_output_tokens=request.max_output_tokens,
         )
+        capability = Capability(
+            id="model.research.generate",
+            scope=f"project:{project_id}",
+            constraints={"provider": self.ai_provider.provider_id, "model": model},
+        )
+        envelope = ExecutionEnvelope(
+            ee_id=f"ee-{uuid4()}",
+            authorization_id=f"ccr-{uuid4()}",
+            actor_id=actor_id,
+            purpose=question,
+            capabilities_requested=[capability],
+            capabilities_granted=[capability],
+            resource_limits=ResourceLimits(max_wall_clock_ms=120_000),
+            data_boundaries=[
+                DataBoundary(
+                    id=f"project:{project_id}",
+                    classification="project-research",
+                    allowed_operations=["read-approved-sources", "write-derived-research"],
+                )
+            ],
+            constitutional_version="ResearchOS-Constitution-0.1",
+            policy_pack_version=f"ResearchWorkflow-{workflow_version}",
+            evidence_requirements=EvidenceRequirements(
+                minimum_assurance_class=AssuranceClass.LOCAL_PROCESS,
+                require_deterministic_trace=False,
+                require_attestation=False,
+                require_full_tool_trace=False,
+            ),
+            workflow_context=WorkflowContext(
+                workflow_id=workflow_version,
+                project_id=str(project_id),
+                tags=["research", "evidence-first"],
+                extra={"source_ids": source_ids},
+            ),
+            issued_by="ConstitutionalAgentRuntime",
+        )
+        execution = RuntimeBroker([AIProviderRuntimeAdapter(self.ai_provider)]).execute(
+            envelope, ai_request
+        )
+        if execution.record.outcome != BrokerOutcome.COMPLETED or execution.output is None:
+            raise ValidationError("CHEA execution is indeterminate; research output was not committed")
+        draft = execution.output
         allowed_source_ids = set(source_ids)
         if any(item.source_id not in allowed_source_ids for item in draft.evidence):
             raise ValidationError("Model output cited a source outside the governed source set")
@@ -155,6 +209,9 @@ class ResearchWorkflowService:
                 "ai_provider": self.ai_provider.provider_id,
                 "model": model,
                 "workflow_version": workflow_version,
+                "chea_envelope_id": envelope.ee_id,
+                "chea_bsr_id": execution.selection.bsr_id,
+                "chea_cer_id": execution.record.cer_id,
             },
         )
         research_question.status = "completed"
@@ -179,9 +236,15 @@ class ResearchWorkflowService:
                 "claim_ids": [item.id for item in claim_records],
                 "verification_ids": [item.id for item in verification_records],
                 "publication_id": publication.id,
+                "chea": {
+                    "execution_envelope": execution.envelope.model_dump(mode="json"),
+                    "broker_selection_record": execution.selection.model_dump(mode="json"),
+                    "constitutional_execution_record": execution.record.model_dump(mode="json"),
+                },
             },
             draft.warnings,
             draft.limitations,
+            execution_id=execution.record.cer_id,
         )
         self.research._event(
             project_id,

@@ -104,6 +104,17 @@ def test_governed_workflow_persists_complete_lineage(workflow_client):
     receipt = client.get(f"/api/v1/projects/{project_id}/receipts").json()[0]
     assert receipt["execution_id"] == response.json()["execution_id"]
     assert receipt["limitations"]
+    chea = receipt["evidence_bundle"]["chea"]
+    assert chea["execution_envelope"]["actor_id"] == "local-development"
+    assert chea["broker_selection_record"]["candidate_adapters"][0]["selected"] is True
+    assert chea["constitutional_execution_record"]["outcome"] == "COMPLETED"
+    assert chea["constitutional_execution_record"]["cer_id"] == receipt["execution_id"]
+    cer_response = client.get(
+        f"/api/v1/projects/{project_id}/receipts/{response.json()['receipt_id']}/cer"
+    )
+    assert cer_response.status_code == 200
+    assert cer_response.json()["authorization_id"].startswith("ccr-")
+    assert cer_response.json()["runtime_selected"]["adapter_id"] == "ai-provider:openai"
     event_types = [item["type"] for item in client.get(f"/api/v1/projects/{project_id}/timeline").json()]
     assert event_types[-1] == "CONSTITUTIONAL_EXECUTION_COMPLETED"
 

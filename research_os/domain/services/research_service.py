@@ -144,11 +144,12 @@ class ResearchService:
         evidence_bundle: dict[str, Any],
         warnings=None,
         limitations=None,
+        execution_id: str | None = None,
     ):
         self._project(project_id)
         receipt = self.uow.receipts.add(
             project_id=project_id,
-            execution_id=str(uuid.uuid4()),
+            execution_id=execution_id or str(uuid.uuid4()),
             question=question,
             model=model,
             workflow_version=workflow_version,
