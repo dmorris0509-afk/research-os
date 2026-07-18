@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     auth_required: bool = False
     jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"
+    mythar_base_url: str | None = None
+    mythar_api_token: str | None = None
+    mythar_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
 
     @field_validator("jwt_secret")
     @classmethod

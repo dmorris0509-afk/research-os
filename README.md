@@ -15,6 +15,12 @@ Research OS can connect a repository and import repository metadata, README cont
 
 See [GitHub integration setup](docs/github-integration.md).
 
+## Mythar integration
+
+Research OS accepts Mythar source through a modular compiler client, validates the resulting Mythar ISF
+v0.4 semantic artifact, and preserves both the source and ISF in the evidence lineage. See
+[Mythar integration setup](docs/mythar-integration.md).
+
 ## Quick Start
 
 ### Installation
@@ -49,6 +55,7 @@ not require credentials. An `OPENAI_API_KEY` is only needed to execute live AI w
 - Inspectable provenance, verification state, execution timeline, and SHA-256-backed receipts.
 - Provider-neutral AI interface with an OpenAI Responses API adapter for the hackathon runtime.
 - GitHub repository import for metadata, README content, Issues, and Pull Requests.
+- Mythar compiler integration with strict ISF v0.4 validation and evidence-lineage persistence.
 - FastAPI backend with SQLite persistence, migrations, OpenAPI documentation, tests, and CI.
 
 Run the automated tests with `pytest -q`.

@@ -3,6 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from research_os.integrations.mythar.models import MytharISF
+
 
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -190,3 +192,12 @@ class WorkflowRead(BaseModel):
     execution_id: str
     publication_id: int
     receipt_id: int
+
+
+class MytharImportCreate(BaseModel):
+    source: str = Field(min_length=1, max_length=100_000)
+
+
+class MytharImportRead(BaseModel):
+    source_id: int
+    isf: MytharISF

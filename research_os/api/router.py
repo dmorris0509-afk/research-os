@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
+from research_os.config import get_settings
 from research_os.db import get_session
-from research_os.domain.services import ResearchService, ResearchWorkflowService
+from research_os.domain.errors import ValidationError
+from research_os.domain.services import MytharISFSink, ResearchService, ResearchWorkflowService
 from research_os.domain.services.ai_provider import AIProviderRegistry
 from research_os.infrastructure import OpenAIResearchClient
+from research_os.integrations.mythar import MytharCompilerClient, MytharImporter
 
 from .auth import current_principal
 from .schemas import (
@@ -15,6 +18,8 @@ from .schemas import (
     EventRead,
     EvidenceCreate,
     EvidenceRead,
+    MytharImportCreate,
+    MytharImportRead,
     ProjectCreate,
     ProjectRead,
     PublicationCreate,
@@ -40,6 +45,18 @@ def service(session: Session = Depends(get_session)) -> ResearchService:
 
 def ai_provider_registry() -> AIProviderRegistry:
     return AIProviderRegistry([OpenAIResearchClient()])
+
+
+def mythar_compiler():
+    settings = get_settings()
+    if not settings.mythar_base_url:
+        raise ValidationError("RESEARCH_OS_MYTHAR_BASE_URL is required for Mythar compilation")
+    with MytharCompilerClient(
+        settings.mythar_base_url,
+        token=settings.mythar_api_token,
+        timeout=settings.mythar_timeout_seconds,
+    ) as compiler:
+        yield compiler
 
 
 @router.post("/projects", response_model=ProjectRead, status_code=201)
@@ -81,6 +98,21 @@ def create_source(project_id: int, body: SourceCreate, svc: ResearchService = De
 @router.get("/projects/{project_id}/sources", response_model=list[SourceRead])
 def list_sources(project_id: int, svc: ResearchService = Depends(service)):
     return svc.list_entities("sources", project_id)
+
+
+@router.post(
+    "/projects/{project_id}/mythar/import",
+    response_model=MytharImportRead,
+    status_code=201,
+)
+def import_mythar_source(
+    project_id: int,
+    body: MytharImportCreate,
+    compiler: MytharCompilerClient = Depends(mythar_compiler),
+    svc: ResearchService = Depends(service),
+):
+    source_id, isf = MytharImporter(compiler, MytharISFSink(svc)).import_source(project_id, body.source)
+    return MytharImportRead(source_id=source_id, isf=isf)
 
 
 @router.post("/projects/{project_id}/evidence", response_model=EvidenceRead, status_code=201)
