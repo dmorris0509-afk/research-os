@@ -41,3 +41,4 @@ workspace/
 *.pem
 .coverage
 htmlcov/
+artifacts/
