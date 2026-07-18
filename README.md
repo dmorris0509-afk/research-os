@@ -15,13 +15,41 @@ Research OS can connect a repository and import repository metadata, README cont
 
 See [GitHub integration setup](docs/github-integration.md).
 
-## Run locally
+## Quick Start
+
+### Installation
+
+Research OS requires Python 3.11 or newer.
 
 ```bash
 python -m venv .venv
+```
+
+Activate the environment (`.venv\\Scripts\\activate` on Windows or `source .venv/bin/activate` on
+macOS/Linux), then install the dependencies:
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+### Running locally
+
+```bash
 streamlit run app.py
 ```
+
+Open `http://localhost:8501`. The judge demo loads a clearly labeled verified sample workspace and does
+not require credentials. An `OPENAI_API_KEY` is only needed to execute live AI workflows; copy
+`.env.example` and provide credentials through your environment rather than committing secrets.
+
+### Feature overview
+
+- Evidence-first research dashboard with projects, questions, sources, claims, and publications.
+- Inspectable provenance, verification state, execution timeline, and SHA-256-backed receipts.
+- Provider-neutral AI interface with an OpenAI Responses API adapter for the hackathon runtime.
+- GitHub repository import for metadata, README content, Issues, and Pull Requests.
+- FastAPI backend with SQLite persistence, migrations, OpenAPI documentation, tests, and CI.
 
 Run the automated tests with `pytest -q`.
 
