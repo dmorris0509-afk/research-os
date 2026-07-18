@@ -4,7 +4,6 @@ from research_os.integrations.github.errors import GitHubIntegrationError
 from research_os.integrations.github.factory import create_github_client
 from research_os.integrations.github.importer import GitHubRepositoryImporter
 
-
 st.set_page_config(page_title="GitHub · Research OS", page_icon="🔗", layout="wide")
 st.title("Connect GitHub")
 st.write("Import repository metadata, README content, Issues, and Pull Requests into Research OS.")
@@ -27,6 +26,9 @@ if st.button("Import repository", type="primary", disabled=not repository.strip(
         with st.expander("Pull requests"):
             for pull in snapshot.pull_requests:
                 st.markdown(f"- [#{pull['number']} {pull['title']}]({pull['html_url']})")
-        st.info("Persistence is delegated to GitHubImportSink so this page can bind to the existing Research OS service layer after it is pushed.")
+        st.info(
+            "Persistence is delegated to GitHubImportSink so this page can bind to the existing "
+            "Research OS service layer after it is pushed."
+        )
     except (ValueError, GitHubIntegrationError) as exc:
         st.error(str(exc))
