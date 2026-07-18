@@ -39,3 +39,5 @@ chroma/
 *.db
 workspace/
 *.pem
+.coverage
+htmlcov/

@@ -14,12 +14,17 @@ def github_transport(request: httpx.Request) -> httpx.Response:
     if path == "/repos/acme/research/readme":
         return httpx.Response(200, text="# Research")
     if path == "/repos/acme/research/issues":
-        return httpx.Response(200, json=[
-            {"number": 1, "title": "Issue", "html_url": "https://example.test/i/1"},
-            {"number": 2, "title": "PR", "pull_request": {}, "html_url": "https://example.test/p/2"},
-        ])
+        return httpx.Response(
+            200,
+            json=[
+                {"number": 1, "title": "Issue", "html_url": "https://example.test/i/1"},
+                {"number": 2, "title": "PR", "pull_request": {}, "html_url": "https://example.test/p/2"},
+            ],
+        )
     if path == "/repos/acme/research/pulls":
-        return httpx.Response(200, json=[{"number": 2, "title": "Improve", "html_url": "https://example.test/p/2"}])
+        return httpx.Response(
+            200, json=[{"number": 2, "title": "Improve", "html_url": "https://example.test/p/2"}]
+        )
     return httpx.Response(404, json={"message": "Not Found"})
 
 

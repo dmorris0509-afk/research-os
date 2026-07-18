@@ -8,13 +8,32 @@ from .errors import GitHubAuthenticationError, GitHubIntegrationError, GitHubNot
 
 
 class GitHubClient:
-    def __init__(self, auth: GitHubAuthProvider, *, api_url="https://api.github.com", api_version="2022-11-28", transport=None):
-        self.auth, self.api_url, self.api_version, self.transport = auth, api_url.rstrip("/"), api_version, transport
+    def __init__(
+        self,
+        auth: GitHubAuthProvider,
+        *,
+        api_url="https://api.github.com",
+        api_version="2022-11-28",
+        transport=None,
+    ):
+        self.auth, self.api_url, self.api_version, self.transport = (
+            auth,
+            api_url.rstrip("/"),
+            api_version,
+            transport,
+        )
 
     def _headers(self, accept: str) -> dict[str, str]:
-        return {"Accept": accept, "Authorization": f"Bearer {self.auth.token()}", "X-GitHub-Api-Version": self.api_version, "User-Agent": "research-os"}
+        return {
+            "Accept": accept,
+            "Authorization": f"Bearer {self.auth.token()}",
+            "X-GitHub-Api-Version": self.api_version,
+            "User-Agent": "research-os",
+        }
 
-    def get(self, path: str, *, params: dict[str, Any] | None = None, accept="application/vnd.github+json") -> httpx.Response:
+    def get(
+        self, path: str, *, params: dict[str, Any] | None = None, accept="application/vnd.github+json"
+    ) -> httpx.Response:
         try:
             with httpx.Client(transport=self.transport, timeout=30, follow_redirects=True) as client:
                 response = client.get(f"{self.api_url}{path}", params=params, headers=self._headers(accept))
