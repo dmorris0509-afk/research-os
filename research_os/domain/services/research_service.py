@@ -150,7 +150,7 @@ class ResearchService:
             project_id=project_id,
             execution_id=str(uuid.uuid4()),
             question=question,
-            gpt_model=model,
+            model=model,
             workflow_version=workflow_version,
             evidence_bundle=evidence_bundle,
             warnings=warnings or [],

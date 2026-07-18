@@ -1,4 +1,4 @@
-from typing import Literal, Protocol
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -32,14 +32,3 @@ class ResearchSource(BaseModel):
     title: str | None
     location: str
     content: str
-
-
-class ResearchModel(Protocol):
-    def research(
-        self,
-        *,
-        question: str,
-        sources: list[ResearchSource],
-        model: str,
-        max_output_tokens: int,
-    ) -> ResearchDraft: ...

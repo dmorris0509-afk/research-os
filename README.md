@@ -5,8 +5,9 @@ Research OS is a constitutional research workspace built around the lifecycle:
 `Question → Evidence → Analysis → Knowledge`
 
 It turns supplied source material into inspectable evidence, claims, analysis, verification, a Markdown
-publication, and a SHA-256-backed execution receipt. GPT-5.6 performs structured synthesis; Research OS
-enforces source boundaries and persists the resulting lineage atomically.
+publication, and a SHA-256-backed execution receipt. A provider-neutral AI boundary performs structured
+synthesis; the hackathon configuration uses OpenAI GPT-5.6. Research OS enforces source boundaries and
+persists the resulting lineage atomically.
 
 ## GitHub integration
 
@@ -53,8 +54,9 @@ repository. See [Backend architecture and operations](docs/backend.md) for an ex
 
 Codex converted the initial Streamlit proof of concept and architecture briefs into the layered API,
 transactional lineage model, migrations, GitHub integration, adversarial provenance tests, and CI checks.
-GPT-5.6 is the governed research engine at runtime through the OpenAI Responses API with typed structured
-outputs. See the [Codex build log](BUILD_LOG.md) for key implementation decisions.
+The domain workflow is model-agnostic and selects adapters through an AI provider registry. The hackathon
+runtime registers OpenAI's Responses API adapter and uses GPT-5.6 typed structured outputs by default. See
+the [Codex build log](BUILD_LOG.md) for key implementation decisions.
 
 ## License
 

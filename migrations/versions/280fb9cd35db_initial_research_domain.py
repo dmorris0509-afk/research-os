@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column("project_id", sa.Integer(), nullable=False),
         sa.Column("execution_id", sa.String(length=36), nullable=False),
         sa.Column("question", sa.Text(), nullable=False),
-        sa.Column("gpt_model", sa.String(length=80), nullable=False),
+        sa.Column("model", sa.String(length=120), nullable=False),
         sa.Column("workflow_version", sa.String(length=40), nullable=False),
         sa.Column("evidence_bundle", sa.JSON(), nullable=False),
         sa.Column("warnings", sa.JSON(), nullable=False),

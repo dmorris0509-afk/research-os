@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from research_os.db import get_session
 from research_os.domain.services import ResearchService, ResearchWorkflowService
-from research_os.domain.services.workflow_models import ResearchModel
+from research_os.domain.services.ai_provider import AIProviderRegistry
 from research_os.infrastructure import OpenAIResearchClient
 
 from .auth import current_principal
@@ -38,8 +38,8 @@ def service(session: Session = Depends(get_session)) -> ResearchService:
     return ResearchService(session)
 
 
-def research_model() -> ResearchModel:
-    return OpenAIResearchClient()
+def ai_provider_registry() -> AIProviderRegistry:
+    return AIProviderRegistry([OpenAIResearchClient()])
 
 
 @router.post("/projects", response_model=ProjectRead, status_code=201)
@@ -166,9 +166,9 @@ def execute_workflow(
     project_id: int,
     body: WorkflowExecute,
     session: Session = Depends(get_session),
-    model_client: ResearchModel = Depends(research_model),
+    providers: AIProviderRegistry = Depends(ai_provider_registry),
 ):
-    return ResearchWorkflowService(session, model_client).run(
+    return ResearchWorkflowService(session, providers.resolve(body.provider)).run(
         project_id=project_id,
         question=body.question,
         source_ids=body.source_ids,

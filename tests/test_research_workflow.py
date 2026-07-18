@@ -4,9 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from research_os.api.app import create_app
-from research_os.api.router import research_model
+from research_os.api.router import ai_provider_registry
 from research_os.db import get_session
 from research_os.domain.models import Base
+from research_os.domain.services.ai_provider import AIProviderRegistry
 from research_os.domain.services.workflow_models import (
     ClaimDraft,
     EvidenceDraft,
@@ -14,14 +15,18 @@ from research_os.domain.services.workflow_models import (
 )
 
 
-class FakeResearchModel:
+class FakeAIProvider:
     def __init__(self, cited_source_id: int | None = None):
         self.cited_source_id = cited_source_id
         self.calls = []
 
-    def research(self, **kwargs):
-        self.calls.append(kwargs)
-        source_id = self.cited_source_id or kwargs["sources"][0].id
+    @property
+    def provider_id(self):
+        return "openai"
+
+    def generate_research(self, request):
+        self.calls.append(request)
+        source_id = self.cited_source_id or request.sources[0].id
         return ResearchDraft(
             evidence=[
                 EvidenceDraft(
@@ -60,10 +65,10 @@ def workflow_client(tmp_path):
                 session.rollback()
                 raise
 
-    fake = FakeResearchModel()
+    fake = FakeAIProvider()
     app = create_app()
     app.dependency_overrides[get_session] = override_session
-    app.dependency_overrides[research_model] = lambda: fake
+    app.dependency_overrides[ai_provider_registry] = lambda: AIProviderRegistry([fake])
     with TestClient(app) as client:
         yield client, app, fake
     engine.dispose()
@@ -87,11 +92,12 @@ def test_governed_workflow_persists_complete_lineage(workflow_client):
             "question": "Does this repository use automated testing?",
             "source_ids": [source["id"]],
             "publication_title": "Repository Audit",
+            "provider": "openai",
         },
     )
 
     assert response.status_code == 201
-    assert fake.calls[0]["model"] == "gpt-5.6"
+    assert fake.calls[0].model == "gpt-5.6"
     assert len(client.get(f"/api/v1/projects/{project_id}/evidence").json()) == 1
     assert client.get(f"/api/v1/projects/{project_id}/claims").json()[0]["status"] == "verified"
     assert client.get(f"/api/v1/projects/{project_id}/questions").json()[0]["status"] == "completed"
@@ -104,7 +110,8 @@ def test_governed_workflow_persists_complete_lineage(workflow_client):
 
 def test_ungrounded_model_output_rolls_back_entire_workflow(workflow_client):
     client, app, _fake = workflow_client
-    app.dependency_overrides[research_model] = lambda: FakeResearchModel(cited_source_id=999)
+    provider = FakeAIProvider(cited_source_id=999)
+    app.dependency_overrides[ai_provider_registry] = lambda: AIProviderRegistry([provider])
     project_id = client.post("/api/v1/projects", json={"name": "Rollback"}).json()["id"]
     source = client.post(
         f"/api/v1/projects/{project_id}/sources",
@@ -113,10 +120,39 @@ def test_ungrounded_model_output_rolls_back_entire_workflow(workflow_client):
 
     response = client.post(
         f"/api/v1/projects/{project_id}/workflow/execute",
-        json={"question": "What is supported?", "source_ids": [source["id"]], "publication_title": "Result"},
+        json={
+            "question": "What is supported?",
+            "source_ids": [source["id"]],
+            "publication_title": "Result",
+            "provider": "openai",
+        },
     )
 
     assert response.status_code == 422
     assert client.get(f"/api/v1/projects/{project_id}/evidence").json() == []
     event_types = [item["type"] for item in client.get(f"/api/v1/projects/{project_id}/timeline").json()]
     assert "CONSTITUTIONAL_EXECUTION_STARTED" not in event_types
+
+
+def test_unknown_ai_provider_is_rejected_before_execution(workflow_client):
+    client, _app, fake = workflow_client
+    project_id = client.post("/api/v1/projects", json={"name": "Provider Policy"}).json()["id"]
+    source = client.post(
+        f"/api/v1/projects/{project_id}/sources",
+        json={"kind": "text", "location": "memory://policy", "metadata": {"content": "Evidence."}},
+    ).json()
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/workflow/execute",
+        json={
+            "question": "What is supported?",
+            "source_ids": [source["id"]],
+            "publication_title": "Result",
+            "provider": "not-configured",
+            "model": "vendor-model-1",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "domain_validation"
+    assert fake.calls == []

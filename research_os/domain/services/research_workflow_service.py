@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from research_os.constitution import ConstitutionalRuntime, WorkflowRequest
 from research_os.domain.errors import ValidationError
 
+from .ai_provider import AIProvider, AIResearchRequest
 from .research_service import ResearchService
-from .workflow_models import ResearchModel, ResearchSource
+from .workflow_models import ResearchSource
 
 
 @dataclass(frozen=True)
@@ -22,11 +23,11 @@ class ResearchWorkflowService:
     def __init__(
         self,
         session: Session,
-        model_client: ResearchModel,
+        ai_provider: AIProvider,
         runtime: ConstitutionalRuntime | None = None,
     ):
         self.research = ResearchService(session)
-        self.model_client = model_client
+        self.ai_provider = ai_provider
         self.runtime = runtime or ConstitutionalRuntime()
 
     def run(
@@ -40,7 +41,15 @@ class ResearchWorkflowService:
         workflow_version: str,
         publication_title: str,
     ) -> WorkflowResult:
-        request = self.runtime.authorize(WorkflowRequest(project_id, question, model, max_output_tokens))
+        request = self.runtime.authorize(
+            WorkflowRequest(
+                project_id,
+                question,
+                self.ai_provider.provider_id,
+                model,
+                max_output_tokens,
+            )
+        )
         if self.runtime.constraints.require_sources and not source_ids:
             raise ValidationError("At least one source is required")
 
@@ -63,14 +72,21 @@ class ResearchWorkflowService:
             "CONSTITUTIONAL_EXECUTION_STARTED",
             "project",
             project_id,
-            {"model": model, "source_ids": source_ids, "workflow_version": workflow_version},
+            {
+                "ai_provider": self.ai_provider.provider_id,
+                "model": model,
+                "source_ids": source_ids,
+                "workflow_version": workflow_version,
+            },
         )
         research_question = self.research.create_question(project_id, question, "in_progress")
-        draft = self.model_client.research(
-            question=request.question,
-            sources=inputs,
-            model=request.model,
-            max_output_tokens=request.max_output_tokens,
+        draft = self.ai_provider.generate_research(
+            AIResearchRequest(
+                question=request.question,
+                sources=inputs,
+                model=request.model,
+                max_output_tokens=request.max_output_tokens,
+            )
         )
         allowed_source_ids = set(source_ids)
         if any(item.source_id not in allowed_source_ids for item in draft.evidence):
@@ -82,7 +98,11 @@ class ResearchWorkflowService:
                 item.source_id,
                 item.content,
                 item.kind,
-                {"relevance": item.relevance, "generated_by": model},
+                {
+                    "relevance": item.relevance,
+                    "ai_provider": self.ai_provider.provider_id,
+                    "model": model,
+                },
             )
             for item in draft.evidence
         ]
@@ -101,16 +121,17 @@ class ResearchWorkflowService:
                 metadata={
                     "confidence": claim.confidence,
                     "evidence_ids": [evidence[index].id for index in claim.evidence_indexes],
-                    "generated_by": model,
+                    "ai_provider": self.ai_provider.provider_id,
+                    "model": model,
                 },
             )
             claim_records.append(record)
             self.research.create_analysis(
                 project_id,
                 record.id,
-                "gpt-5.6-structured-synthesis",
+                "provider-structured-synthesis",
                 claim.analysis,
-                {"generated_by": model},
+                {"ai_provider": self.ai_provider.provider_id, "model": model},
             )
             verification_records.append(
                 self.research.create_verification(
@@ -118,7 +139,11 @@ class ResearchWorkflowService:
                     record.id,
                     claim.verdict,
                     claim.verification_details,
-                    {"confidence": claim.confidence, "generated_by": model},
+                    {
+                        "confidence": claim.confidence,
+                        "ai_provider": self.ai_provider.provider_id,
+                        "model": model,
+                    },
                 )
             )
 
@@ -126,7 +151,11 @@ class ResearchWorkflowService:
             project_id,
             publication_title,
             report_text=draft.report_markdown,
-            metadata={"model": model, "workflow_version": workflow_version},
+            metadata={
+                "ai_provider": self.ai_provider.provider_id,
+                "model": model,
+                "workflow_version": workflow_version,
+            },
         )
         research_question.status = "completed"
         self.research._event(
@@ -144,6 +173,7 @@ class ResearchWorkflowService:
             draft.report_markdown,
             {
                 "question_id": research_question.id,
+                "ai_provider": self.ai_provider.provider_id,
                 "source_ids": source_ids,
                 "evidence_ids": [item.id for item in evidence],
                 "claim_ids": [item.id for item in claim_records],

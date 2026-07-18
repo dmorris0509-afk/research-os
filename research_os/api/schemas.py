@@ -154,7 +154,7 @@ class EventRead(ORMModel):
 
 class ReceiptCreate(BaseModel):
     question: str = Field(min_length=1)
-    model: str = Field(min_length=1, max_length=80)
+    model: str = Field(min_length=1, max_length=120)
     workflow_version: str = Field(min_length=1, max_length=40)
     report_text: str
     evidence_bundle: dict[str, Any] = Field(default_factory=dict)
@@ -167,7 +167,7 @@ class ReceiptRead(ORMModel):
     project_id: int
     execution_id: str
     question: str
-    gpt_model: str
+    model: str
     workflow_version: str
     evidence_bundle: dict[str, Any]
     warnings: list[str]
@@ -179,7 +179,8 @@ class ReceiptRead(ORMModel):
 class WorkflowExecute(BaseModel):
     question: str = Field(min_length=1, max_length=20_000)
     source_ids: list[int] = Field(min_length=1, max_length=100)
-    model: Literal["gpt-5.6"] = "gpt-5.6"
+    provider: str = Field(default="openai", min_length=1, max_length=80)
+    model: str = Field(default="gpt-5.6", min_length=1, max_length=120)
     max_output_tokens: int = Field(default=8_000, ge=1, le=20_000)
     workflow_version: str = Field(default="1.0.0", min_length=1, max_length=40)
     publication_title: str = Field(min_length=1, max_length=500)

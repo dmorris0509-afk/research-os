@@ -7,12 +7,14 @@ from research_os.domain.errors import ValidationError
 class WorkflowRequest:
     project_id: int
     question: str
+    provider: str
     model: str
     max_output_tokens: int
 
 
 @dataclass(frozen=True)
 class WorkflowConstraints:
+    allowed_providers: tuple[str, ...] = ("openai",)
     allowed_models: tuple[str, ...] = ("gpt-5.6",)
     max_output_tokens: int = 20_000
     require_sources: bool = True
@@ -28,6 +30,8 @@ class ConstitutionalRuntime:
     def authorize(self, request: WorkflowRequest) -> WorkflowRequest:
         if not request.question.strip():
             raise ValidationError("Research question is required")
+        if request.provider not in self.constraints.allowed_providers:
+            raise ValidationError(f"AI provider {request.provider!r} is not allowed")
         if request.model not in self.constraints.allowed_models:
             raise ValidationError(f"Model {request.model!r} is not allowed")
         if not 1 <= request.max_output_tokens <= self.constraints.max_output_tokens:

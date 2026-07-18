@@ -18,10 +18,12 @@ def test_workspace_confines_paths(tmp_path):
 
 def test_constitutional_runtime_enforces_model_and_budget():
     runtime = ConstitutionalRuntime()
-    valid = WorkflowRequest(1, "What does the evidence support?", "gpt-5.6", 2_000)
+    valid = WorkflowRequest(1, "What does the evidence support?", "openai", "gpt-5.6", 2_000)
     assert runtime.authorize(valid) is valid
 
     with pytest.raises(ValidationError):
-        runtime.authorize(WorkflowRequest(1, "Question", "unapproved-model", 2_000))
+        runtime.authorize(WorkflowRequest(1, "Question", "unapproved", "gpt-5.6", 2_000))
     with pytest.raises(ValidationError):
-        runtime.authorize(WorkflowRequest(1, "Question", "gpt-5.6", 100_000))
+        runtime.authorize(WorkflowRequest(1, "Question", "openai", "unapproved-model", 2_000))
+    with pytest.raises(ValidationError):
+        runtime.authorize(WorkflowRequest(1, "Question", "openai", "gpt-5.6", 100_000))

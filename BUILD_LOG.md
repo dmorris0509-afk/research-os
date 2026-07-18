@@ -27,3 +27,5 @@ The backend work is isolated in dated Git commits so judges can distinguish it f
 - Model output may transform supplied evidence but cannot introduce a new source identifier.
 - Services and repositories never commit independently; the API request is the transaction boundary.
 - Tests use a deterministic model double, so CI never requires or spends an API key.
+- The AI provider protocol and registry keep OpenAI SDK types outside the domain and make provider/model
+  selection explicit in the API request and receipt lineage.

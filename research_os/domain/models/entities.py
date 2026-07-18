@@ -106,7 +106,7 @@ class ResearchReceipt(TimestampMixin, Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     execution_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    gpt_model: Mapped[str] = mapped_column(String(80), nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
     workflow_version: Mapped[str] = mapped_column(String(40), nullable=False)
     evidence_bundle: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     warnings: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)

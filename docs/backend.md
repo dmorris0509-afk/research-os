@@ -15,6 +15,7 @@ The Streamlit UI remains `app.py`. The API entrypoint is `research_os.api.app:ap
 - **Repositories** only stage persistence operations; they never commit independently.
 - **The request transaction** commits the entity and its audit event together or rolls both back.
 - **Constitutional runtime** governs AI workflow admission, not ordinary CRUD.
+- **AI provider interface** keeps the domain independent of any vendor SDK or model family.
 - **GitHub adapter** converts a repository snapshot into a Source plus Evidence records.
 
 ## Data lineage
@@ -48,8 +49,9 @@ No default production credential or fake user store is included. Production iden
 
 ## Governed workflow
 
-The high-level endpoint runs one typed GPT-5.6 synthesis and persists all derived records in the API
-request transaction:
+The high-level endpoint resolves a configured provider adapter, runs one typed synthesis, and persists all
+derived records in the API request transaction. OpenAI with GPT-5.6 is the current hackathon default, not a
+domain dependency:
 
 ```http
 POST /api/v1/projects/1/workflow/execute
@@ -58,6 +60,7 @@ Content-Type: application/json
 {
   "question": "What does the supplied evidence support?",
   "source_ids": [1, 2],
+  "provider": "openai",
   "model": "gpt-5.6",
   "max_output_tokens": 8000,
   "workflow_version": "1.0.0",
@@ -74,6 +77,11 @@ signature support is intentionally deferred until a managed signing-key design e
 The timeline is a chronological reconstruction of persisted actions. Deterministic replay is not claimed:
 that would additionally require immutable model snapshots, prompt versions, sampling parameters, and full
 input capture.
+
+Provider implementations satisfy the `AIProvider` protocol and receive an `AIResearchRequest`. Core
+services consume the provider-neutral `ResearchDraft`; only infrastructure adapters import vendor SDKs.
+`AIProviderRegistry` rejects unknown providers with a structured domain validation error. Adding another
+provider therefore requires an adapter plus governance configuration, not changes to the workflow service.
 
 ## Database lifecycle
 
