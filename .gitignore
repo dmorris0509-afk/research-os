@@ -9,6 +9,7 @@ venv/
 
 # Environment variables
 .env
+.env.local
 
 # Streamlit
 .streamlit/secrets.toml
@@ -33,3 +34,11 @@ chroma/
 
 # Logs
 *.log
+
+# Runtime data and GitHub credentials
+*.db
+workspace/
+*.pem
+.coverage
+htmlcov/
+artifacts/
